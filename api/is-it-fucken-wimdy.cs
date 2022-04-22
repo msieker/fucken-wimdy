@@ -13,17 +13,24 @@ namespace MattSieker.FuckenWimdy
 {
     public record FuckenWimdyResponse(string IpAddress, GeolocateData Geolocation);
 
-    public record GeolocateData(string Country, string State, string City, double Latitude, double Longitude);
+    public record GeolocateData(bool Success, string Message, string Country, string State, string City, double Latitude, double Longitude);
 
     public static class IsItFuckenWimdy
     {
         private static GeolocateData Geolocate(string ipAddress, string baseDir)
         {
-            using var reader = new DatabaseReader(Path.Combine(baseDir, "GeoLite2-City.mmdb"));
+            try
+            {
+                using var reader = new DatabaseReader(Path.Combine(baseDir, "GeoLite2-City.mmdb"));
 
-            var loc = reader.City(ipAddress);
-            
-            return new GeolocateData(loc.Country.IsoCode, loc.MostSpecificSubdivision.Name, loc.City.Name, loc.Location.Latitude ?? 0, loc.Location.Longitude ?? 0);
+                var loc = reader.City(ipAddress);
+
+                return new GeolocateData(true, "", loc.Country.IsoCode, loc.MostSpecificSubdivision.Name, loc.City.Name, loc.Location.Latitude ?? 0, loc.Location.Longitude ?? 0);
+            }
+            catch (Exception ex)
+            {
+                return new GeolocateData(false, ex.Message, "", "", "", 0, 0);
+            }
         }
 
         [FunctionName("is_it_fucken_wimdy")]
