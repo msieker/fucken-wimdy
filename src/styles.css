@@ -38,12 +38,22 @@ main > h1 {
   color: #aaa;
 }
 
+#credits {
+  margin-top: 2em;
+  text-align: center;
+  font-size: small;
+  color: #aaa;
+}
 @media (prefers-color-scheme: dark) {
   html, body {
     background-color: #000;
     color: #b0b0b0;
   }
   #details{
+    color: #666;
+  }
+
+  #credits{
     color: #666;
   }
 }
