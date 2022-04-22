@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using MaxMind.GeoIP2;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +9,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using Newtonsoft.Json;
 
 namespace MattSieker.FuckenWimdy
@@ -17,6 +20,17 @@ namespace MattSieker.FuckenWimdy
 
     public static class IsItFuckenWimdy
     {
+        private static string GetIpAddress(HttpRequest req)
+        {
+            IPAddress result = null;
+            if (req.Headers.TryGetValue("X-Forwarded-For", out StringValues values))
+            {
+                var ipn = values.First().Split(new char[] { ',' }).FirstOrDefault()?.Split(new char[] { ':' }).FirstOrDefault();
+                IPAddress.TryParse(ipn, out result);
+            }
+            result ??= req.HttpContext.Connection.RemoteIpAddress;
+            return result.ToString();
+        }
         private static GeolocateData Geolocate(string ipAddress, string baseDir)
         {
             try
@@ -40,7 +54,7 @@ namespace MattSieker.FuckenWimdy
             ExecutionContext context)
         {
             log.LogInformation("C# HTTP trigger function processed a request.");
-            var locationIp = req.HttpContext.Connection.RemoteIpAddress.ToString();
+            var locationIp = GetIpAddress(req);
 
             if (req.Query.TryGetValue("remoteIp", out var v))
             {
