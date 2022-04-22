@@ -7,6 +7,9 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
 using MaxMind.GeoIP2;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.DataContracts;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
@@ -40,10 +43,14 @@ namespace MattSieker.FuckenWimdy
     public class IsItFuckenWimdy
     {
         private readonly HttpClient _httpClient;
-        public IsItFuckenWimdy(HttpClient httpClient)
+        private readonly TelemetryClient _telemetryClient;
+        private readonly DatabaseReader _dbReader;
+
+        public IsItFuckenWimdy(HttpClient httpClient, TelemetryConfiguration configuration, DatabaseReader dbReader)
         {
             _httpClient = httpClient;
-
+            _dbReader = dbReader;
+            _telemetryClient = new TelemetryClient(configuration);
             _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("isitfuckenwimdy.com", "1.0"));
             _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("(Matt Sieker <matt@siekernet.com>)"));
         }
@@ -62,6 +69,7 @@ namespace MattSieker.FuckenWimdy
 
         private async Task<ForecastData> GetForecast(double latitude, double longitude)
         {
+            using var operation = _telemetryClient.StartOperation<DependencyTelemetry>("Request_NWS_Forecast");
             try
             {
 
@@ -70,8 +78,8 @@ namespace MattSieker.FuckenWimdy
                 var gridResponseStream = await _httpClient.GetStreamAsync(pointResponse.properties.forecastGridData);
                 var gridResponse = await JsonSerializer.DeserializeAsync<GridResponse>(gridResponseStream);
 
-                return new ForecastData(true, "", 
-                    pointResponse.properties.gridId, 
+                return new ForecastData(true, "",
+                    pointResponse.properties.gridId,
                     pointResponse.properties.relativeLocation.properties.city, pointResponse.properties.relativeLocation.properties.state,
                     gridResponse.properties.updateTime,
                     gridResponse.properties.windDirection.values.Last().value,
@@ -84,13 +92,12 @@ namespace MattSieker.FuckenWimdy
             }
         }
 
-        private static GeolocateData Geolocate(string ipAddress, string baseDir)
+        private GeolocateData Geolocate(string ipAddress, string baseDir)
         {
+            using var operation = _telemetryClient.StartOperation<DependencyTelemetry>("Geolocation");
             try
             {
-                using var reader = new DatabaseReader(Path.Combine(baseDir, "GeoLite2-City.mmdb"));
-
-                var loc = reader.City(ipAddress);
+                var loc = _dbReader.City(ipAddress);
 
                 return new GeolocateData(true, "", loc.Country.IsoCode, loc.MostSpecificSubdivision.Name, loc.City.Name, loc.Location.Latitude ?? 0, loc.Location.Longitude ?? 0);
             }
