@@ -1,0 +1,5 @@
+## First Request
+GET https://api.weather.gov/points/38.961,-94.4712
+
+### Grid
+GET https://api.weather.gov/gridpoints/EAX/47,43

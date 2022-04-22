@@ -5,13 +5,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="styles.css">
-  <title>Vanilla JavaScript App</title>
+  <title>Is it fucken wimdy?</title>
 </head>
 
 <body>
   <main>
-    <h1>Vanilla JavaScript App</h1>
+    <h1>Is it fucken wimdy?</h1>
+    <div id="displayImage"></div>
+    <div id="caption"></div>
+    <div id="details"></div>
   </main>
+  <script>
+    (async function(){
+      let url = "api/is_it_fucken_wimdy";
+      const params = new Proxy(new URLSearchParams(window.location.search), {
+        get: (searchParams, prop) => searchParams.get(prop),
+      });
+
+      if(params.lat && params.lng){
+        url += `?lat=${params.lat}&lng=${params.lng}`;
+      }
+      const response = await (await fetch(url)).json();
+
+      if(!response.forecast.success){
+        document.getElementById("displayImage").innerHTML = "<img src='dunno.jpg' alt='Dunno'>";
+        document.getElementById("caption").innerHTML = "Dunno";        
+      }
+      else {
+        if(response.forecast.windSpeed > 15 || response.forecast.windGust > 25){
+          document.getElementById("displayImage").innerHTML = "<img src='wimdy.jpg' alt='Its fucken wimdy'>";
+          document.getElementById("caption").innerHTML = "It's fucken wimdy";
+        }else{
+          document.getElementById("displayImage").innerHTML = "<img src='not-wimdy.jpg' alt='Its not wimdy'>";
+          document.getElementById("caption").innerHTML = "It's not wimdy";
+        }
+      }
+
+      document.getElementById("details").innerHTML = `Your geolocated location was (${response.geolocation.latitude}, ${response.geolocation.longitude}). NWS forcast for ${response.forecast.city}, ${response.forecast.state} (${response.forecast.gridId}). Wind speed: ${response.forecast.windSpeed}mph gusting to ${response.forecast.windGust}mph`;
+    }());
+  </script>
 </body>
 
 </html>
