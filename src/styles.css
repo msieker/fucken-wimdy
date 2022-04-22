@@ -10,9 +10,12 @@ html, body {
 }
 
 main {
-  margin: auto;
-  width: 50%;
-  padding: 10px;
+  max-width: 80%;
+  width: 80vw;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  margin: 0 auto;
 }
 
 main > h1 {
@@ -20,11 +23,16 @@ main > h1 {
   font-size: 3.5em;
 }
 
+#displayImage {
+  width: 100%;
+  margin: 0 auto;
+}
+
 #displayImage img {
   width: 640px;
   height:auto;
+  margin: 0 auto;
   display: block;
-  margin:auto;
 }
 
 #caption {
@@ -36,6 +44,7 @@ main > h1 {
   text-align: center;
   font-size: small;
   color: #aaa;
+  
 }
 
 #credits {
@@ -55,5 +64,14 @@ main > h1 {
 
   #credits{
     color: #666;
+  }
+}
+@media only screen and (max-width: 600px) {
+  #displayImage img {
+    width: 80vw;
+  }
+
+  #details {
+    
   }
 }
