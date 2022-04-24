@@ -39,7 +39,7 @@ main > h1 {
   text-align: center;
 }
 
-#details {
+.details {
   margin-top: 1em;
   text-align: center;
   font-size: small;
@@ -58,12 +58,16 @@ main > h1 {
     background-color: #000;
     color: #b0b0b0;
   }
-  #details{
+  .details{
     color: #666;
   }
 
   #credits{
     color: #666;
+  }
+
+  a{
+    color: #31ACC5;
   }
 }
 @media only screen and (max-width: 600px) {

@@ -19,36 +19,62 @@
     <h1>Is it fucken wimdy?</h1>
     <div id="displayImage"></div>
     <div id="caption">Getting your forecast...</div>
-    <div id="details"></div>
+    <div id="details" class="details"></div>
+    <div class="details">Need more accurate wimd? <a id="useLocation" href="#useLocation">Use your location</a>. Only two digits of precision (about 0.6 miles/1km) are sent to the NWS to get your forecast, and is not stored or used for anything else.</div>
     <div id="credits">By <a href="https://twitter.com/matt_sieker">Matt Sieker</a></div>
   </main>
   <script>
     (async function(){
-      let url = "api/is_it_fucken_wimdy";
+      function truncate_coord(coord){
+        let numeric = 0;
+        if(typeof coord === 'string'){
+          numeric = parseFloat(coord);
+        } else {
+          numeric = coord;
+        }
+        if(isNaN(coord) || !!!coord) return undefined;
+
+        return coord.toFixed(2);
+      }
+      async function get_wimdy(lat, lng){
+        let url = "api/is_it_fucken_wimdy";
+
+        if(lat && lng){
+          url += `?lat=${lat}&lng=${lng}`;
+        }
+        const response = await (await fetch(url)).json();
+
+        if(!response.forecast.success){
+          document.getElementById("displayImage").innerHTML = "<img src='dunno.jpg' alt='Dunno'>";
+          document.getElementById("caption").innerHTML = "Dunno";        
+        }
+        else {
+          if(response.forecast.windSpeed > 15 || response.forecast.windGust > 25){
+            document.getElementById("displayImage").innerHTML = "<img src='wimdy.jpg' alt='Its fucken wimdy'>";
+            document.getElementById("caption").innerHTML = "It's fucken wimdy";
+          }else{
+            document.getElementById("displayImage").innerHTML = "<img src='not-wimdy.jpg' alt='Its not wimdy'>";
+            document.getElementById("caption").innerHTML = "It's not wimdy";
+          }
+        }
+        const latitude = lat ? lat : response.geolocation.latitude;
+        const longitude = lng ? lng : response.geolocation.longitude;
+        document.getElementById("details").innerHTML = `Your geolocated location was (${latitude}, ${longitude}). NWS forcast for ${response.forecast.city}, ${response.forecast.state} (${response.forecast.gridId}). Wind speed: ${response.forecast.windSpeed}mph gusting to ${response.forecast.windGust}mph`;
+      }
+      
       const params = new Proxy(new URLSearchParams(window.location.search), {
         get: (searchParams, prop) => searchParams.get(prop),
       });
+      
+      get_wimdy(truncate_coord(params.lat), truncate_coord(params.lng));
 
-      if(params.lat && params.lng){
-        url += `?lat=${params.lat}&lng=${params.lng}`;
-      }
-      const response = await (await fetch(url)).json();
-
-      if(!response.forecast.success){
-        document.getElementById("displayImage").innerHTML = "<img src='dunno.jpg' alt='Dunno'>";
-        document.getElementById("caption").innerHTML = "Dunno";        
-      }
-      else {
-        if(response.forecast.windSpeed > 15 || response.forecast.windGust > 25){
-          document.getElementById("displayImage").innerHTML = "<img src='wimdy.jpg' alt='Its fucken wimdy'>";
-          document.getElementById("caption").innerHTML = "It's fucken wimdy";
-        }else{
-          document.getElementById("displayImage").innerHTML = "<img src='not-wimdy.jpg' alt='Its not wimdy'>";
-          document.getElementById("caption").innerHTML = "It's not wimdy";
+      document.getElementById("useLocation").addEventListener("click", async function(e){
+        e.preventDefault();        
+        async function success(pos){
+          get_wimdy(truncate_coord(pos.coords.latitude), truncate_coord(pos.coords.longitude));
         }
-      }
-
-      document.getElementById("details").innerHTML = `Your geolocated location was (${response.geolocation.latitude}, ${response.geolocation.longitude}). NWS forcast for ${response.forecast.city}, ${response.forecast.state} (${response.forecast.gridId}). Wind speed: ${response.forecast.windSpeed}mph gusting to ${response.forecast.windGust}mph`;
+        navigator.geolocation.getCurrentPosition(success, null, {enableHighAccuracy: false, timeout: 5000});
+      });
     }());
   </script>
 </body>
