@@ -10,8 +10,7 @@ html, body {
 }
 
 main {
-  max-width: 80%;
-  width: 80vw;
+  width: 650px;
   display: flex;
   justify-content: center;
   flex-direction: column;
@@ -58,6 +57,7 @@ main > h1 {
     background-color: #000;
     color: #b0b0b0;
   }
+  
   .details{
     color: #666;
   }
@@ -71,11 +71,11 @@ main > h1 {
   }
 }
 @media only screen and (max-width: 600px) {
-  #displayImage img {
+  main {
+    max-width: 80%;
     width: 80vw;
   }
-
-  #details {
-    
+  #displayImage img {
+    width: 80vw;
   }
 }
