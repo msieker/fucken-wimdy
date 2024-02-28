@@ -31,15 +31,13 @@ namespace MattSieker.FuckenWimdy
         double windDirection,
         double windSpeed,
         double windGust,
-        string windDirectionValid,
-        string windSpeedValid,
-        string windGustValid);
+        string rawMessage);
 
     record LocationGeomertry(string type, double[] coordinates);
     record LocationProperties(string city, string state);
     record RelativeLocation(string type, LocationGeomertry geometry, LocationProperties properties);
 
-    record PointsProperties(string cwa, string gridId, string forecastGridData, RelativeLocation relativeLocation);
+    record PointsProperties(string cwa, string gridId, string forecastGridData, RelativeLocation relativeLocation, string observationStations);
 
     record PointsResponse(string id, string type, PointsProperties properties);
 
@@ -50,7 +48,15 @@ namespace MattSieker.FuckenWimdy
 
     record GridResponse(string id, string type, GridProperties properties);
 
+    record ObservationStationsFeature(string id);
+    record ObservationStationsResponse(ObservationStationsFeature[] features);
 
+    record ObservationValue(string unitCode, double? value, string qualityControl);
+
+    record ObservationFeatureProperties(string station, DateTimeOffset timestamp, string rawMessage, ObservationValue windDirection, ObservationValue windSpeed, ObservationValue windGust);
+
+    record ObservationFeature(string id, ObservationFeatureProperties properties);
+    record ObservationResponse(ObservationFeature[] features);
 
     public class IsItFuckenWimdy
     {
@@ -79,7 +85,7 @@ namespace MattSieker.FuckenWimdy
             return result.ToString();
         }
 
-        private async Task<ForecastData> GetForecast(double latitude, double longitude)
+        private async Task<ForecastData> GetForecast2(double latitude, double longitude)
         {
             using var operation = _telemetryClient.StartOperation<DependencyTelemetry>("Request_NWS_Forecast");
             try
@@ -87,30 +93,66 @@ namespace MattSieker.FuckenWimdy
 
                 var pointResponseStream = await _httpClient.GetStreamAsync($"https://api.weather.gov/points/{latitude:F4},{longitude:F4}");
                 var pointResponse = await JsonSerializer.DeserializeAsync<PointsResponse>(pointResponseStream);
-                var gridResponseStream = await _httpClient.GetStreamAsync(pointResponse.properties.forecastGridData);
-                var gridResponse = await JsonSerializer.DeserializeAsync<GridResponse>(gridResponseStream);
+                var observationStationsStream = await _httpClient.GetStreamAsync(pointResponse.properties.observationStations);
+                var observationStationsResponse = await JsonSerializer.DeserializeAsync<ObservationStationsResponse>(observationStationsStream);
 
+                var station = observationStationsResponse.features.First();
 
-                var windDirection = gridResponse.properties.windDirection.values.First();
-                var windSpeed = gridResponse.properties.windSpeed.values.First();
-                var windGust = gridResponse.properties.windGust.values.First();
+                var stationObservationStream = await _httpClient.GetStreamAsync(station.id + "/observations");
+                var observationResponse = await JsonSerializer.DeserializeAsync<ObservationResponse>(stationObservationStream);
+
+                var feature = observationResponse.features.First();
+                var windDirection = feature.properties.windDirection.value ?? 0;
+                var windSpeed = feature.properties.windSpeed.value ?? 0;
+                var windGust = feature.properties.windGust.value ?? 0;
 
                 return new ForecastData(true, "",
                     pointResponse.properties.gridId,
                     pointResponse.properties.relativeLocation.properties.city, pointResponse.properties.relativeLocation.properties.state,
-                    gridResponse.properties.updateTime,
-                    windDirection.value,
-                    Math.Round(windSpeed.value / 1.609,1),
-                    Math.Round(windGust.value / 1.609, 1),
-                    windDirection.validTime,
-                    windSpeed.validTime,
-                    windGust.validTime);
+                    feature.properties.timestamp,
+                    windDirection,
+                    Math.Round(windSpeed / 1.609, 1),
+                    Math.Round(windGust / 1.609, 1),
+                    feature.properties.rawMessage);
             }
             catch (Exception ex)
             {
-                return new ForecastData(false, ex.Message, "", "", "", DateTimeOffset.Now, 0, 0, 0, "", "", "");
+                return new ForecastData(false, ex.Message, "", "", "", DateTimeOffset.Now, 0, 0, 0, "");
             }
         }
+
+        //private async Task<ForecastData> GetForecast(double latitude, double longitude)
+        //{
+        //    using var operation = _telemetryClient.StartOperation<DependencyTelemetry>("Request_NWS_Forecast");
+        //    try
+        //    {
+
+        //        var pointResponseStream = await _httpClient.GetStreamAsync($"https://api.weather.gov/points/{latitude:F4},{longitude:F4}");
+        //        var pointResponse = await JsonSerializer.DeserializeAsync<PointsResponse>(pointResponseStream);
+        //        var gridResponseStream = await _httpClient.GetStreamAsync(pointResponse.properties.forecastGridData);
+        //        var gridResponse = await JsonSerializer.DeserializeAsync<GridResponse>(gridResponseStream);
+
+
+        //        var windDirection = gridResponse.properties.windDirection.values.First();
+        //        var windSpeed = gridResponse.properties.windSpeed.values.First();
+        //        var windGust = gridResponse.properties.windGust.values.First();
+
+        //        return new ForecastData(true, "",
+        //            pointResponse.properties.gridId,
+        //            pointResponse.properties.relativeLocation.properties.city, pointResponse.properties.relativeLocation.properties.state,
+        //            gridResponse.properties.updateTime,
+        //            windDirection.value,
+        //            Math.Round(windSpeed.value / 1.609,1),
+        //            Math.Round(windGust.value / 1.609, 1),
+        //            windDirection.validTime,
+        //            windSpeed.validTime,
+        //            windGust.validTime);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ForecastData(false, ex.Message, "", "", "", DateTimeOffset.Now, 0, 0, 0, "", "", "");
+        //    }
+        //}
 
         private GeolocateData Geolocate(string ipAddress, string baseDir)
         {
@@ -160,11 +202,11 @@ namespace MattSieker.FuckenWimdy
             ForecastData forecast;
             if (latitude != 0 && longitude != 0)
             {
-                forecast = await GetForecast(latitude, longitude);
+                forecast = await GetForecast2(latitude, longitude);
             }
             else
             {
-                forecast = new ForecastData(false, "No location data", "", "", "", DateTimeOffset.Now, 0, 0, 0, "", "", "");
+                forecast = new ForecastData(false, "No location data", "", "", "", DateTimeOffset.Now, 0, 0, 0, "");
             }
 
             var response = new FuckenWimdyResponse(locationIp, loc, forecast);
