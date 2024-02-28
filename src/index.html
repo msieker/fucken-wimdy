@@ -20,7 +20,10 @@
     <div id="displayImage"></div>
     <div id="caption">Getting your forecast...</div>
     <div id="details" class="details"></div>
-    <div class="details">Need more accurate wimd? <a id="useLocation" href="#useLocation">Use your location</a>. Only two digits of precision (about 0.6 miles/1km) are sent to the NWS to get your forecast, and is not stored or used for anything else.</div>
+    <div class="details">
+      Need more accurate wimd? <a id="useLocation" href="#useLocation">Use your location</a>.<br>
+      Only two digits of precision (about 0.6 miles/1km) are sent to Open Meteo to get your forecast<br>
+      This data is not stored, logged, or used for anything else.</div>
     <div id="credits">By <a href="https://twitter.com/matt_sieker">Matt Sieker</a></div>
   </main>
   <script>
@@ -32,9 +35,9 @@
         } else {
           numeric = coord;
         }
-        if(isNaN(coord) || !!!coord) return undefined;
+        if(isNaN(numeric) || !!!numeric) return undefined;
 
-        return coord.toFixed(2);
+        return numeric.toFixed(2);
       }
       async function get_wimdy(lat, lng){
         let url = "api/is_it_fucken_wimdy";
@@ -44,22 +47,40 @@
         }
         const response = await (await fetch(url)).json();
 
-        if(!response.forecast.success){
+        var message = "";
+        if(!response.success){
           document.getElementById("displayImage").innerHTML = "<img src='dunno.jpg' alt='Dunno'>";
-          document.getElementById("caption").innerHTML = "Dunno";        
+          document.getElementById("caption").innerHTML = "Dunno";
+
+          message = `Something went wrong judging the wimd. Server said: ${response.message}`;
         }
         else {
-          if(response.forecast.windSpeed > 15 || response.forecast.windGust > 25){
+          var speed = response.weather.current.windSpeed;
+          var gusts = response.weather.current.windGusts;
+          if(speed > 25 || gusts > 40){
             document.getElementById("displayImage").innerHTML = "<img src='wimdy.jpg' alt='Its fucken wimdy'>";
             document.getElementById("caption").innerHTML = "It's fucken wimdy";
           }else{
             document.getElementById("displayImage").innerHTML = "<img src='not-wimdy.jpg' alt='Its not wimdy'>";
             document.getElementById("caption").innerHTML = "It's not wimdy";
           }
+
+          const latitude = (response.geo.lat ?? response.weather.latitude ?? 0).toFixed(3);
+          const longitude = (response.geo.lng ?? response.weather.longitude ?? 0).toFixed(3);
+          const prefersImperial = response.geo.prefersImperial;
+          const units = prefersImperial ? "mph" : "kph";
+          
+          speed = (speed / (prefersImperial ? 1.609 : 1)).toFixed(1);
+          gusts = (gusts / (prefersImperial ? 1.609 : 1)).toFixed(1);
+
+          message = `Your geolocated location was (${latitude}, ${longitude}).<br>`
+          if(response.geo) {
+            message += `Current conditions for ${response.geo.name}, ${response.geo.adminCode1} ${response.geo.countryCode}.<br>`
+          }
+          message += `Wind speed: ${speed}${units} gusting to ${gusts}${units}`
         }
-        const latitude = lat ? lat : response.geolocation.latitude;
-        const longitude = lng ? lng : response.geolocation.longitude;
-        document.getElementById("details").innerHTML = `Your geolocated location was (${latitude}, ${longitude}). NWS forcast for ${response.forecast.city}, ${response.forecast.state} (${response.forecast.gridId}). Wind speed: ${response.forecast.windSpeed}mph gusting to ${response.forecast.windGust}mph`;
+                
+        document.getElementById("details").innerHTML = message;
       }
       
       const params = new Proxy(new URLSearchParams(window.location.search), {
