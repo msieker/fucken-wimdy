@@ -21,7 +21,19 @@ namespace MattSieker.FuckenWimdy
 {
     public record FuckenWimdyResponse(string IpAddress, GeolocateData Geolocation, ForecastData forecast);
     public record GeolocateData(bool Success, string Message, string Country, string State, string City, double Latitude, double Longitude);
-    public record ForecastData(bool success, string message, string gridId, string city, string state, DateTimeOffset forecastTime, double windDirection, double windSpeed, double windGust);
+    public record ForecastData(
+        bool success,
+        string message,
+        string gridId,
+        string city,
+        string state,
+        DateTimeOffset forecastTime,
+        double windDirection,
+        double windSpeed,
+        double windGust,
+        string windDirectionValid,
+        string windSpeedValid,
+        string windGustValid);
 
     record LocationGeomertry(string type, double[] coordinates);
     record LocationProperties(string city, string state);
@@ -78,17 +90,25 @@ namespace MattSieker.FuckenWimdy
                 var gridResponseStream = await _httpClient.GetStreamAsync(pointResponse.properties.forecastGridData);
                 var gridResponse = await JsonSerializer.DeserializeAsync<GridResponse>(gridResponseStream);
 
+
+                var windDirection = gridResponse.properties.windDirection.values.First();
+                var windSpeed = gridResponse.properties.windSpeed.values.First();
+                var windGust = gridResponse.properties.windGust.values.First();
+
                 return new ForecastData(true, "",
                     pointResponse.properties.gridId,
                     pointResponse.properties.relativeLocation.properties.city, pointResponse.properties.relativeLocation.properties.state,
                     gridResponse.properties.updateTime,
-                    gridResponse.properties.windDirection.values.Last().value,
-                    gridResponse.properties.windSpeed.values.Last().value,
-                    gridResponse.properties.windGust.values.Last().value);
+                    windDirection.value,
+                    Math.Round(windSpeed.value / 1.609,1),
+                    Math.Round(windGust.value / 1.609, 1),
+                    windDirection.validTime,
+                    windSpeed.validTime,
+                    windGust.validTime);
             }
             catch (Exception ex)
             {
-                return new ForecastData(false, ex.Message, "", "", "", DateTimeOffset.Now, 0, 0, 0);
+                return new ForecastData(false, ex.Message, "", "", "", DateTimeOffset.Now, 0, 0, 0, "", "", "");
             }
         }
 
@@ -144,7 +164,7 @@ namespace MattSieker.FuckenWimdy
             }
             else
             {
-                forecast = new ForecastData(false, "No location data", "", "", "", DateTimeOffset.Now, 0, 0, 0);
+                forecast = new ForecastData(false, "No location data", "", "", "", DateTimeOffset.Now, 0, 0, 0, "", "", "");
             }
 
             var response = new FuckenWimdyResponse(locationIp, loc, forecast);
