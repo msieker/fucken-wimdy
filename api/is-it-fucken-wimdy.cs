@@ -48,7 +48,8 @@ namespace MattSieker.FuckenWimdy
 
     record GridResponse(string id, string type, GridProperties properties);
 
-    record ObservationStationsFeature(string id);
+    record ObservationStationProperties(string stationIdentifier, string name);
+    record ObservationStationsFeature(string id, ObservationStationProperties properties);
     record ObservationStationsResponse(ObservationStationsFeature[] features);
 
     record ObservationValue(string unitCode, double? value, string qualityControl);
@@ -107,7 +108,7 @@ namespace MattSieker.FuckenWimdy
                 var windGust = feature.properties.windGust.value ?? 0;
 
                 return new ForecastData(true, "",
-                    pointResponse.properties.gridId,
+                    station.properties.stationIdentifier + " " + station.properties.name,
                     pointResponse.properties.relativeLocation.properties.city, pointResponse.properties.relativeLocation.properties.state,
                     feature.properties.timestamp,
                     windDirection,
